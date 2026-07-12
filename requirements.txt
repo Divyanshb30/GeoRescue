@@ -1,0 +1,10 @@
+# Data-foundation stage only. torch / fastapi / etc. get added when those
+# stages start. Versions are pinned exactly at Docker-build time; loose here
+# so we get current wheels during development.
+rasterio
+pystac-client
+geopandas
+shapely
+pyproj
+numpy
+requests
