@@ -9,6 +9,3 @@ generalization analysis (Uttarakhand foothills → Brahmaputra floodplain).
 
 **Status: in build.** Full documentation, architecture diagram and live demo
 land with the first release.
-
-Outputs are *candidate sites for assessment* — decision support, not
-certified site planning.
