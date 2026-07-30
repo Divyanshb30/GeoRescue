@@ -8,3 +8,4 @@ shapely
 pyproj
 numpy
 requests
+scipy
