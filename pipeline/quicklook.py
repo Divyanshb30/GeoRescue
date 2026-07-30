@@ -22,6 +22,20 @@ from rasterio.io import MemoryFile
 
 STRETCH = (2.0, 98.0)  # percentile clip; raw reflectance renders near-black otherwise
 
+# Class codes are labels, not quantities: stretching them would imply water is
+# "more" than trees. Categorical layers get a fixed palette instead, so two
+# runs are also directly comparable - which matters when the model's output is
+# put next to the WorldCover baseline.
+CLASS_COLOURS = {
+    0: (0, 0, 0),          # nodata / ignore
+    1: (26, 92, 45),       # trees
+    2: (163, 186, 72),     # shrub + grassland
+    3: (232, 178, 92),     # cropland
+    4: (198, 62, 48),      # built-up
+    5: (176, 168, 148),    # bare / sparse
+    6: (44, 102, 194),     # water + wetland
+}
+
 # A quicklook is a picture, not a layer: dropping the transform is the point,
 # so rasterio's "this has no geotransform" warning is noise here.
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
@@ -52,16 +66,35 @@ def stretch_to_byte(band: np.ndarray, valid: np.ndarray) -> np.ndarray:
     return np.clip(scaled, 0, 255).astype("uint8")
 
 
-def render(path: Path, band_names: list[str] | None, width: int, out_path: Path) -> None:
+def render(
+    path: Path, band_names: list[str] | None, width: int, out_path: Path, categorical: bool
+) -> None:
     with rasterio.open(path) as src:
         indices = resolve_bands(src, band_names)
         height = max(round(src.height * width / src.width), 1)
         # Averaging on the way down, not nearest: a 5x decimation by nearest
         # would drop 24 of every 25 pixels and alias thin features like rivers.
+        # Class codes are the exception - averaging them invents classes.
         data = src.read(
-            indices, out_shape=(len(indices), height, width), resampling=Resampling.average
+            indices,
+            out_shape=(len(indices), height, width),
+            resampling=Resampling.nearest if categorical else Resampling.average,
         )
         nodata = src.nodata
+
+    if categorical:
+        lut = np.zeros((256, 3), dtype="uint8")
+        for code, colour in CLASS_COLOURS.items():
+            lut[code] = colour
+        rgb = lut[data[0]].transpose(2, 0, 1)
+        with MemoryFile() as memfile:
+            profile = {"driver": "GTiff", "width": width, "height": height,
+                       "count": 3, "dtype": "uint8"}
+            with memfile.open(**profile) as tmp:
+                tmp.write(rgb)
+                rasterio.shutil.copy(tmp, out_path, driver="PNG")
+        print(f"{out_path}  {width}x{height}  categorical, {len(np.unique(data))} classes present")
+        return
 
     valid = np.ones(data.shape[1:], dtype=bool) if nodata is None else (data != nodata).any(axis=0)
     rgb = np.stack([stretch_to_byte(b, valid) for b in data])
@@ -89,10 +122,13 @@ def main() -> None:
     parser.add_argument("--bands", nargs="+", help="band names or 1-based indices")
     parser.add_argument("--width", type=int, default=1400)
     parser.add_argument("--out", type=Path)
+    parser.add_argument(
+        "--categorical", action="store_true", help="class codes: fixed palette, no stretch"
+    )
     args = parser.parse_args()
 
     out = args.out or args.raster.with_suffix(".quicklook.png")
-    render(args.raster, args.bands, args.width, out)
+    render(args.raster, args.bands, args.width, out, args.categorical)
 
 
 if __name__ == "__main__":

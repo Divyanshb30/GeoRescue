@@ -22,7 +22,8 @@ from typing import Iterator
 import numpy as np
 from affine import Affine
 from rasterio.crs import CRS
-from rasterio.warp import transform_bounds
+from rasterio.enums import Resampling
+from rasterio.warp import reproject, transform_bounds
 from rasterio.windows import Window
 from rasterio.windows import bounds as window_bounds
 
@@ -129,6 +130,32 @@ def grid_for(region: Region) -> Grid:
         width=round((right - left) / RESOLUTION),
         height=round((top - bottom) / RESOLUTION),
     )
+
+
+def to_grid(
+    source: np.ndarray,
+    src_transform: Affine,
+    src_crs,
+    src_nodata,
+    grid: Grid,
+    resampling: Resampling,
+    dtype: str,
+    dst_nodata,
+) -> np.ndarray:
+    """Reproject an array onto the grid. The only way layers get here."""
+    out = np.full(grid.shape, dst_nodata, dtype=dtype)
+    reproject(
+        source=source,
+        destination=out,
+        src_transform=src_transform,
+        src_crs=src_crs,
+        src_nodata=src_nodata,
+        dst_transform=grid.transform,
+        dst_crs=grid.crs,
+        dst_nodata=dst_nodata,
+        resampling=resampling,
+    )
+    return out
 
 
 def assert_matches(grid: Grid, src, name: str) -> None:

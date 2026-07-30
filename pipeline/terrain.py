@@ -24,9 +24,9 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.errors import RasterioIOError
 from rasterio.merge import merge
-from rasterio.warp import reproject
 
 from pipeline.grid import Grid, assert_matches, grid_for
+from pipeline.grid import to_grid as grid_reproject
 from pipeline.regions import REGIONS, Region
 
 DEM_BUCKET = "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com"
@@ -70,7 +70,7 @@ def load_mosaic(region: Region) -> tuple[np.ndarray, object, object]:
         lon_max + BBOX_PAD_DEG, lat_max + BBOX_PAD_DEG,
     )
     opened = []
-    for url in tile_urls(region.bbox):
+    for url in tile_urls(bounds):  # padded, so a pad crossing a tile edge still resolves
         try:
             opened.append(rasterio.open(url))
         except RasterioIOError:
@@ -92,19 +92,9 @@ def load_mosaic(region: Region) -> tuple[np.ndarray, object, object]:
 def to_grid(
     source: np.ndarray, src_transform, src_crs, src_nodata, grid: Grid, resampling: Resampling
 ) -> np.ndarray:
-    out = np.full(grid.shape, NODATA, dtype="float32")
-    reproject(
-        source=source,
-        destination=out,
-        src_transform=src_transform,
-        src_crs=src_crs,
-        src_nodata=src_nodata,
-        dst_transform=grid.transform,
-        dst_crs=grid.crs,
-        dst_nodata=NODATA,
-        resampling=resampling,
+    return grid_reproject(
+        source, src_transform, src_crs, src_nodata, grid, resampling, "float32", NODATA
     )
-    return out
 
 
 def horn_slope(elevation: np.ndarray, res: float) -> np.ndarray:
