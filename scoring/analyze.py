@@ -75,11 +75,16 @@ def main() -> None:
     )
     parser.add_argument("--top", type=int, default=5)
     parser.add_argument("--min-score", type=int, default=1)
+    parser.add_argument(
+        "--out-dir", type=Path,
+        help="where to write results; defaults to the region's layer directory",
+    )
     args = parser.parse_args()
 
     region = REGIONS[args.region]
     grid = grid_for(region)
-    out_dir = layers.region_dir(region)
+    out_dir = args.out_dir or layers.region_dir(region)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     window = None
     if args.bbox:

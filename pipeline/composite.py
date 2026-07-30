@@ -73,6 +73,14 @@ GDAL_ENV = {
     "GDAL_HTTP_RETRY_DELAY": "2",
     "CPL_VSIL_CURL_CACHE_SIZE": "268435456",  # 256 MB of fetched blocks kept warm
     "VSI_CACHE": "TRUE",
+    # Without these, a stalled socket hangs the run indefinitely rather than
+    # failing into the retry above - observed on the Region B build, where a
+    # stripe sat for many minutes against a ~200 s norm. A bounded failure that
+    # retries beats an unbounded wait on a job measured in hours.
+    "GDAL_HTTP_TIMEOUT": "120",
+    "GDAL_HTTP_CONNECTTIMEOUT": "30",
+    "GDAL_HTTP_LOW_SPEED_TIME": "60",  # abort if under...
+    "GDAL_HTTP_LOW_SPEED_LIMIT": "1000",  # ...1 kB/s for that long
 }
 
 

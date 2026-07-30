@@ -111,20 +111,17 @@ suitability map looks perfectly plausible.
 
 ### 3.3 Layer inventory
 
-All seven source layers are built for **both** regions except Region B's composite
-(in progress). Layer table:
-
-| Layer | dtype | nodata | Built by | Status |
-|---|---|---|---|---|
-| `s2_composite.tif` (B2,B3,B4,B8) | uint16 | 0 | `pipeline/composite.py` | ✅ Region A |
-| `s2_clear_count.tif` | uint8 | 0 | `pipeline/composite.py` | ✅ Region A |
-| `dem.tif` | float32 | −9999 | `pipeline/terrain.py` | ✅ Region A |
-| `slope.tif` (degrees) | float32 | −9999 | `pipeline/terrain.py` | ✅ Region A |
-| `landcover.tif` (6-class) | uint8 | 0 | `pipeline/landcover.py` | ✅ Region A |
-| `dist_road.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ Region A |
-| `dist_water.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ Region A |
-| `landcover_model.tif` | uint8 | 0 | `model/predict.py` | ⬜ Phase 3 |
-| `suitability.tif` | uint8 | 0 | `scoring/suitability.py` | 🟡 scaffolding built, scorer owner-authored |
+| Layer | dtype | nodata | Built by | A | B |
+|---|---|---|---|---|---|
+| `s2_composite.tif` (B2,B3,B4,B8) | uint16 | 0 | `pipeline/composite.py` | ✅ | 🟡 |
+| `s2_clear_count.tif` | uint8 | 0 | `pipeline/composite.py` | ✅ | 🟡 |
+| `dem.tif` | float32 | −9999 | `pipeline/terrain.py` | ✅ | ✅ |
+| `slope.tif` (degrees) | float32 | −9999 | `pipeline/terrain.py` | ✅ | ✅ |
+| `landcover.tif` (6-class) | uint8 | 0 | `pipeline/landcover.py` | ✅ | ✅ |
+| `dist_road.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ | ✅ |
+| `dist_water.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ | ✅ |
+| `landcover_model.tif` | uint8 | 0 | `model/predict.py` | ⬜ Phase 3 | ⬜ Phase 4 |
+| `suitability.tif` | uint8 | 0 | `scoring/suitability.py` | 🟡 scorer owner-authored | 🟡 |
 
 All tiled 512×512, deflate-compressed, predictor 2 for integers / 3 for floats — the
 COG layout, so windowed reads over HTTP stay cheap once these live on GCS.
