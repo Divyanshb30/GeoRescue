@@ -473,3 +473,4 @@ Full rationale for every choice lives in `DECISIONS.md`. Index:
 | 014 | Region B stack; A→B shift measured, prior vs covariate separated |
 | 015 | Spatial block split: 1024 px blocks, random assignment, 256 px buffer |
 | 016 | Normalisation stats: training blocks only, frozen, region-A everywhere |
+| 017 | Deterministic report v1; the v1.5 numeral verifier built early |
