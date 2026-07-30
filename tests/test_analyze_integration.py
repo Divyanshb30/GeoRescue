@@ -139,3 +139,16 @@ def test_module_entrypoint_is_wired(monkeypatch, tmp_path):
     with pytest.raises(SystemExit) as excinfo:
         runpy.run_module("scoring.analyze", run_name="__main__")
     assert excinfo.value.code == 0
+
+
+def test_analyze_output_feeds_the_report_generator_cleanly(run_cli):
+    """The whole product path: layers -> score -> sites -> prose, with every
+    numeral in the prose traced back to a computed statistic."""
+    from reports.template import render, verify
+
+    payload = json.loads((run_cli() / "sites.json").read_text())
+    text = render(payload)
+
+    assert verify(text, payload) == [], "report invented a number"
+    assert "Region A" in text
+    assert "not certified site planning" in text.lower()

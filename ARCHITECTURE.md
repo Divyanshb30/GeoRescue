@@ -196,20 +196,36 @@ post-2021 built-up change is the natural candidate, and it is measurable.
 
 ### 4.3 Split protocol — spatial blocks, never random
 
+Binding rule (§8), implemented in `model/splits.py` and built for both regions.
+
 ```mermaid
-flowchart LR
-    subgraph REG["Region A — checkerboard of blocks"]
-        direction LR
-        B1["train"] --- B2["val"] --- B3["train"]
-        B4["val"] --- B5["train"] --- B6["val"]
-    end
-    REG --> NOTE["Adjacent pixels are correlated.<br/>A random patch split leaks<br/>neighbours across the boundary."]
+flowchart TD
+    G["Region grid"] --> B["Cut into 1024 px blocks<br/>(~10.2 km)"]
+    B --> R["Assign blocks at random, seeded<br/>20% val"]
+    R --> BUF["Erode 256 px of TRAIN<br/>around every VAL block"]
+    BUF --> P["Enumerate patches strictly<br/>inside one split"]
+    P --> OUT["397 train / 104 val patches (Region A)<br/>no patch spans a boundary"]
 ```
 
-Binding rule (§8). A random pixel or patch split puts a patch's own neighbours in the
-validation set — the same leakage class as a temporal split done wrong, and it inflates
-every metric. Contiguous geographic blocks are held out instead, and the writeup says so
-explicitly rather than quietly doing the right thing.
+Three guarantees, all tested:
+
+1. **Whole blocks held out**, not random patches — a random split puts a patch's own
+   neighbours in validation and inflates every metric.
+2. **A buffer of unused ground** separates train from val. Block splitting alone is not
+   enough: two patches either side of a shared edge are still neighbours. The buffer costs
+   ~16 % of the region and comes entirely out of *train* — held-out ground never shrinks.
+3. **Patch containment** — a patch is offered only if all 65,536 of its pixels are one
+   split. `tests/test_splits.py` brute-forces this: no train patch contains a single val pixel.
+
+| | Region A | Region B |
+|---|---|---|
+| train / val / buffer | 66.1 / 17.9 / 16.1 % | 66.9 / 18.1 / 15.0 % |
+| patches (stride 256) | 397 / 104 | 380 / 100 |
+| patches (stride 128) | 1,442 / 326 | 1,395 / 317 |
+
+All six classes appear in both splits of both regions — a val set missing a class cannot
+score it. Open owner decision: 397 non-overlapping patches is thin for training from
+scratch; stride 128 quadruples it at the cost of half-shared pixels (#015).
 
 ### 4.4 Model
 
@@ -244,6 +260,11 @@ Everything that determines a result is either pinned in git or emitted as a run 
 
 - **Data**: scene IDs pinned in `pipeline/manifests/*.json`; OSM as a dated Geofabrik
   extract; DEM/WorldCover are static versioned products.
+- **Input normalisation**: frozen to `model/stats/norm_regionA.json`, computed over
+  **training blocks only** — whole-region stats leak held-out ground into the input
+  scaling, invisibly, since no val label is ever seen. Region A's stats are used for
+  Region B too: normalising B by its own distribution would erase part of the shift
+  Phase 4 measures (#016).
 - **Config**: one dataclass per run, hashed into the run directory name.
 - **Seeds**: fixed and logged; block split derived deterministically from the grid.
 - **Artifacts per run**: config, seed, metrics JSON, confusion matrix, per-class F1,
@@ -450,3 +471,5 @@ Full rationale for every choice lives in `DECISIONS.md`. Index:
 | 012 | Mosaic windows must be padded past the bbox |
 | 013 | OSM via pinned Geofabrik extract, drivable-road filter |
 | 014 | Region B stack; A→B shift measured, prior vs covariate separated |
+| 015 | Spatial block split: 1024 px blocks, random assignment, 256 px buffer |
+| 016 | Normalisation stats: training blocks only, frozen, region-A everywhere |
