@@ -9,7 +9,7 @@ served as an interactive map with grounded, zero-hallucination reports.
 | **Status** | Phase 1 (data foundation) — 4 of 5 layers built for Region A |
 | **Scale** | 2 regions × ~3,850 km² × 10 m = 40.5 Mpx per layer |
 | **Budget** | ₹0 build · ₹0–500/mo serving (scale-to-zero) |
-| **Companion docs** | `TERRAIN_PROJECT_SPEC.md` (the plan, binding) · `DECISIONS.md` (every decision + rationale) · `BUILD_LOG.md` (audit trail) · `PROGRESS.md` (state) |
+| **Companion docs** | project spec (the plan, binding) · decision log (every choice + rationale) · build log (audit trail) · progress tracker — all maintained alongside this document |
 
 ---
 
