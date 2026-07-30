@@ -4,7 +4,7 @@ Confirms every external data path works from this machine before any other
 pipeline code gets written. Read-only and tiny: each probe reads a small
 window straight over HTTP; nothing is written to disk.
 
-Run:  python pipeline/verify_sources.py
+Run:  python -m pipeline.verify_sources
 """
 
 import sys
@@ -14,8 +14,12 @@ import rasterio
 from pystac_client import Client
 from rasterio.windows import Window
 
-# Region A probe bbox (Dehradun-Rishikesh-Haridwar belt).
-BBOX_A = (77.75, 29.90, 78.35, 30.50)  # lon_min, lat_min, lon_max, lat_max
+from pipeline.regions import REGIONS
+
+# Imported, never retyped: DECISIONS #004 makes `pipeline/regions.py` the only
+# place a bbox may live. A verifier probing a stale copy of the bbox would
+# report all-clear for ground the pipeline no longer looks at.
+BBOX_A = REGIONS["A"].bbox
 
 EARTH_SEARCH_URL = "https://earth-search.aws.element84.com/v1"
 S2_COLLECTIONS = ("sentinel-2-c1-l2a", "sentinel-2-l2a")

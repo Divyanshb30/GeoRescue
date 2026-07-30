@@ -6,7 +6,7 @@ served as an interactive map with grounded, zero-hallucination reports.
 
 | | |
 |---|---|
-| **Status** | Phase 1 (data foundation) — 4 of 5 layers built for Region A |
+| **Status** | Phase 1 — Region A data foundation complete; Region B in progress; scorer is the last link |
 | **Scale** | 2 regions × ~3,850 km² × 10 m = 40.5 Mpx per layer |
 | **Budget** | ₹0 build · ₹0–500/mo serving (scale-to-zero) |
 | **Companion docs** | project spec (the plan, binding) · decision log (every choice + rationale) · build log (audit trail) · progress tracker — all maintained alongside this document |
@@ -111,6 +111,9 @@ suitability map looks perfectly plausible.
 
 ### 3.3 Layer inventory
 
+All seven source layers are built for **both** regions except Region B's composite
+(in progress). Layer table:
+
 | Layer | dtype | nodata | Built by | Status |
 |---|---|---|---|---|
 | `s2_composite.tif` (B2,B3,B4,B8) | uint16 | 0 | `pipeline/composite.py` | ✅ Region A |
@@ -121,7 +124,7 @@ suitability map looks perfectly plausible.
 | `dist_road.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ Region A |
 | `dist_water.tif` (metres) | float32 | −1 | `pipeline/osm.py` | ✅ Region A |
 | `landcover_model.tif` | uint8 | 0 | `model/predict.py` | ⬜ Phase 3 |
-| `suitability.tif` | uint8 | 0 | `scoring/suitability.py` | ⬜ next |
+| `suitability.tif` | uint8 | 0 | `scoring/suitability.py` | 🟡 scaffolding built, scorer owner-authored |
 
 All tiled 512×512, deflate-compressed, predictor 2 for integers / 3 for floats — the
 COG layout, so windowed reads over HTTP stay cheap once these live on GCS.
@@ -175,9 +178,20 @@ WorldCover 2021 is the label source. Two known defects, both stated rather than 
 | Temporal drift | Labels 2021, imagery 2026 | Some "errors" are real post-2021 construction in a fast-growing Dehradun |
 | Class imbalance | trees 70.05 % ↔ water 0.43 % (**163:1**) | Pixel accuracy is meaningless; a constant "trees" predictor scores 70 % |
 
-Measured shares (Region A): trees 70.05 · cropland 16.07 · shrub+grass 7.00 ·
-built 5.21 · bare 1.24 · water 0.43. Built and water — the two rarest after bare — are
-exactly the classes §8 calls scoring-critical.
+Measured shares, both regions — and the gap between the columns *is* the shift chapter:
+
+| class | Region A | Region B |
+|---|---|---|
+| trees | 70.05 % | 28.91 % |
+| cropland | 16.07 % | 48.91 % |
+| shrub + grassland | 7.00 % | 4.40 % |
+| built-up | 5.21 % | 1.53 % |
+| bare / sparse | 1.24 % | 1.11 % |
+| water + wetland | **0.43 %** | **15.15 %** |
+
+Built and water — the two rarest in A after bare — are exactly the classes §8 calls
+scoring-critical. And water is **35× more prevalent in B**, which is prior shift, not
+spectral difference (§4.7, C018).
 
 **This asymmetry is an opportunity, not only noise.** Gate 3's bar is that the model beat
 "just use WorldCover" on 2026 imagery in at least one demonstrable way. Detecting
@@ -380,7 +394,7 @@ version ships.
 | **Data provenance** | Every report carries `data_timestamps`: imagery window, DEM version, WorldCover vintage, OSM extract date |
 | **Failure modes** | Documented per layer in `DECISIONS.md`, surfaced in report caveats |
 | **Observability** | Every builder prints a nodata count and a distribution — the padding bug was caught by exactly this |
-| **Testing** | ⚠️ **Current top debt.** `assert_matches` is the safety net for the highest-rated risk and nothing proves it fires |
+| **Testing** | 62 tests, offline. Both safety nets have regression tests, including a corner-only mask reproducing the S010 failure. Gap: no end-to-end builder test — every builder needs the network |
 | **Cost** | ₹0 build (all sources open, free-tier GPU); ₹0–500/mo serving |
 
 ---
@@ -403,7 +417,7 @@ version ships.
 
 | Phase | Deliverable | State |
 |---|---|---|
-| 1 — Data foundation | Aligned stacks both regions; CLI heatmap | 🟡 Region A: 4 of 5 layers built (S004–S009) |
+| 1 — Data foundation | Aligned stacks both regions; CLI heatmap | 🟡 Region A complete; Region B 4/5; scorer outstanding (S004–S013) |
 | 2 — Product live | Deployed URL, draw → heatmap → report | ⬜ |
 | 3 — Training arc | Owner-written U-Net, eval report, UI toggle | ⬜ |
 | 4 — Shift chapter | Full pipeline on Region B, degradation quantified | ⬜ |
@@ -412,8 +426,10 @@ version ships.
 Original spec dates are void — the build paused 13–30 Jul and was re-planned against
 20 h/week. Phases are a progress lens, not a schedule.
 
-**Immediate path to Gate 1:** distance layers ✅ → suitability scorer (owner-written) →
-site extraction + CLI → polygon in, heatmap out.
+**Immediate path to Gate 1: one function.** Layers ✅ · loading and validation ✅ ·
+site extraction ✅ · heatmap and report JSON ✅ · tests ✅. `scoring/suitability.py::score()`
+is owner-authored and stubbed; when it returns, `python -m scoring.analyze --region A`
+produces the Gate 1 deliverable with no other change.
 
 ---
 
@@ -436,3 +452,4 @@ Full rationale for every choice lives in `DECISIONS.md`. Index:
 | 011 | WorldCover 11 → 6 classes, 0 = ignore |
 | 012 | Mosaic windows must be padded past the bbox |
 | 013 | OSM via pinned Geofabrik extract, drivable-road filter |
+| 014 | Region B stack; A→B shift measured, prior vs covariate separated |
