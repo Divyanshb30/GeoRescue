@@ -6,7 +6,7 @@ served as an interactive map with grounded, zero-hallucination reports.
 
 | | |
 |---|---|
-| **Status** | Phase 1 — Region A data foundation complete; Region B in progress; scorer is the last link |
+| **Status** | Phase 1 — data foundation complete for **both** regions; the scorer is the last link to Gate 1 |
 | **Scale** | 2 regions × ~3,850 km² × 10 m = 40.5 Mpx per layer |
 | **Budget** | ₹0 build · ₹0–500/mo serving (scale-to-zero) |
 | **Companion docs** | project spec (the plan, binding) · decision log (every choice + rationale) · build log (audit trail) · progress tracker — all maintained alongside this document |
@@ -113,8 +113,8 @@ suitability map looks perfectly plausible.
 
 | Layer | dtype | nodata | Built by | A | B |
 |---|---|---|---|---|---|
-| `s2_composite.tif` (B2,B3,B4,B8) | uint16 | 0 | `pipeline/composite.py` | ✅ | 🟡 |
-| `s2_clear_count.tif` | uint8 | 0 | `pipeline/composite.py` | ✅ | 🟡 |
+| `s2_composite.tif` (B2,B3,B4,B8) | uint16 | 0 | `pipeline/composite.py` | ✅ | ✅ |
+| `s2_clear_count.tif` | uint8 | 0 | `pipeline/composite.py` | ✅ | ✅ |
 | `dem.tif` | float32 | −9999 | `pipeline/terrain.py` | ✅ | ✅ |
 | `slope.tif` (degrees) | float32 | −9999 | `pipeline/terrain.py` | ✅ | ✅ |
 | `landcover.tif` (6-class) | uint8 | 0 | `pipeline/landcover.py` | ✅ | ✅ |
@@ -286,6 +286,7 @@ flowchart TD
     CF -->|"clear-look depth"| C1["s2_clear_count correlation"]
     CF -->|"class prior shift"| C2["compare label histograms"]
     CF -->|"label vintage"| C3["2021 drift differs by region"]
+    CF -->|"seasonal label mismatch"| C4["only 24.9% of Region B's<br/>water labels are wet in<br/>the dry-season composite"]
     CF --> ATTR["Attribute what remains:<br/>spectral + structural biome shift"]
     ATTR --> LOC["Localise: which classes,<br/>which spatial contexts, why"]
 ```
@@ -294,9 +295,16 @@ The diagnosis is the contribution — measure the degradation, localise it, expl
 mechanism. Remediation (fine-tuning, domain adaptation) is an explicit stretch; if it
 doesn't ship it is documented as next steps, not hidden (spec §12).
 
-Confound control is not optional here. Region A's eastern ~10 % has only 4–7 clear looks
-versus ~14 in the tile-overlap centre; that is a *spatial* quality gradient that would
-masquerade as a biome effect if left unchecked — #009.
+Confound control is not optional here, and the biggest confound was only found by looking
+at the picture. Region B's imagery is a **dry-season** composite, so the Brahmaputra is at
+minimum extent while WorldCover's water class is an annual figure: only **24.9 % of Region
+B's water-labelled pixels are actually wet** in our imagery (median NIR 3090 DN, where open
+water sits below 1200). Much of any water-class degradation would therefore be an artifact
+of the imagery window (#001), not cross-biome failure — #018.
+
+Second confound: Region A's eastern ~10 % has only 4–7 clear looks versus ~14 in the
+tile-overlap centre, a *spatial* quality gradient that would masquerade as a biome effect —
+#009. Region B has no equivalent problem: 0.000 % holes, minimum 5 clear looks anywhere.
 
 ### 4.8 Currency: where this sits in 2026 practice
 
@@ -474,3 +482,4 @@ Full rationale for every choice lives in `DECISIONS.md`. Index:
 | 015 | Spatial block split: 1024 px blocks, random assignment, 256 px buffer |
 | 016 | Normalisation stats: training blocks only, frozen, region-A everywhere |
 | 017 | Deterministic report v1; the v1.5 numeral verifier built early |
+| 018 | Region B water labels vs dry-season imagery — corrects #014 |

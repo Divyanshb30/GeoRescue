@@ -51,7 +51,7 @@ among the rarest. **Trees:water in Region A is 163:1.**
 | Inputs | Sentinel-2 L2A bands B2, B3, B4, B8 at 10 m |
 | Imagery | Per-pixel median composite, 2026-01-01 → 2026-04-30, SCL-masked (#009) |
 | Region A composite quality | median 12 clear looks/pixel, 0.652 % pixels with none |
-| Region B composite quality | median ~24 clear looks/pixel, ~0 % empty |
+| Region B composite quality | median 12 clear looks/pixel, mean 15.8, **0.000 % empty** |
 | Labels | ESA WorldCover 2021 v200 — **weak supervision**, 5 years older than the imagery |
 | Patch size | 256 × 256 |
 | Normalisation | Frozen, `model/stats/norm_regionA.json`, computed on **training blocks only** (#016) |
@@ -136,8 +136,13 @@ are separated first (#014):
    the biome.
 3. **Label-vintage drift.** WorldCover 2021 vs 2026 imagery, and the two
    regions have not changed at the same rate.
+4. **Seasonal label/imagery mismatch — the largest.** Only 24.9 % of Region
+   B's water-labelled pixels are actually wet in the Jan–Apr composite
+   (median NIR 3090 DN; open water is below 1200). Three quarters of Region
+   B's water labels sit over dry channel bed. Water-class degradation is
+   therefore partly an artifact of the imagery window, not the biome (#018).
 
-Only what survives all three earns the "cross-biome shift" claim.
+Only what survives all four earns the "cross-biome shift" claim.
 
 ---
 
@@ -153,7 +158,11 @@ Only what survives all three earns the "cross-biome shift" claim.
 - **Slope, a downstream input, comes from a DSM** — canopy and roofs inflate
   it, and land cover is least reliable at exactly those boundaries, so the two
   0.30-weight scoring factors fail together (#010).
-- **Region A's eastern strip is thinner imagery** (#009).
+- **Region A's eastern strip is thinner imagery** (#009). Region B has no
+  equivalent gap — 0.000 % holes, minimum 5 clear looks anywhere.
+- **Region B's water labels disagree with Region B's imagery** (#018). This is
+  the single largest known label-quality problem in the project, and it
+  affects the class the scorer treats as a hard exclusion.
 - Trained and evaluated on two Indian regions only. Nothing here supports a
   claim about performance anywhere else.
 
